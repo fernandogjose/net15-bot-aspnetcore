@@ -1,14 +1,14 @@
 {
-    "name": "MeuBot",
+    "name": "Teste",
     "description": "",
     "services": [
         {
             "type": "endpoint",
             "appId": "",
             "appPassword": "",
-            "endpoint": "http://localhost:3978/api/messages",
-            "id": "e642d170-87e5-11e9-ac5f-07ae0b77db86",
-            "name": "http://localhost:3978/api/messages"
+            "endpoint": "http://localhost:5000/api/messages",
+            "id": "60ee5150-87f1-11e9-ac5f-07ae0b77db86",
+            "name": "http://localhost:5000/api/messages"
         }
     ],
     "padlock": "",
