@@ -19,4 +19,9 @@
     <DotNetCliToolReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Tools" Version="2.0.4" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\SimpleBotCore.AppService\SimpleBotCore.AppService.csproj" />
+    <ProjectReference Include="..\SimpleBotCore.Infra.DI\SimpleBotCore.Infra.DI.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -1,32 +1,24 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Bot.Connector;
 using Microsoft.Bot.Schema;
 using SimpleBotCore.Logic;
-using MongoDB.Driver;
-using MongoDB.Bson;
+using SimpleBotCore.AppService.AppServices;
+using SimpleBotCore.AppService.Dtos;
 
 namespace SimpleBotCore.Controllers
 {
     [Route("api/[controller]")]
     public class MessagesController : Controller
     {
-        private readonly MongoClient _client;
-
-        private readonly IMongoDatabase _db;
-
         SimpleBotUser _bot = new SimpleBotUser();
+        private readonly ChatAppService _chatAppService;
 
-        public MessagesController(SimpleBotUser bot)
+        public MessagesController(SimpleBotUser bot, ChatAppService chatAppService)
         {
-            this._bot = bot;
-
-            // Abre a conexão e grava no banco
-            _client = new MongoClient("mongodb://127.0.0.1:27017");
-            _db = _client.GetDatabase("Bot");
+            _bot = bot;
+            _chatAppService = chatAppService;
         }
 
         [HttpGet]
@@ -36,17 +28,12 @@ namespace SimpleBotCore.Controllers
         }
 
         [HttpGet("{message}")]
-        public string Get(string message)
+        public IActionResult Get(string message)
         {
-            var collection = _db.GetCollection<BsonDocument>("Chat");
-            FilterDefinitionBuilder<BsonDocument> builder = Builders<BsonDocument>.Filter;
-            FilterDefinition<BsonDocument> filter = builder.Eq("Mensagem", message);
-            BsonDocument bsonDocumentResponse = collection.Find(filter).FirstOrDefault();
-
-            return bsonDocumentResponse == null ? "Registro não encontrado" : bsonDocumentResponse.GetValue("Mensagem").ToString();
+            string response = _chatAppService.GetMessage(message);
+            return Ok(response);
         }
 
-        // POST api/messages
         [HttpPost]
         public async Task<IActionResult> Post([FromBody]Activity activity)
         {
@@ -57,39 +44,16 @@ namespace SimpleBotCore.Controllers
 
             if (string.IsNullOrEmpty(activity.Text))
             {
-                return Accepted();
+                return BadRequest();
             }
 
-            // Grava a mensagem
-            var collectionChat = _db.GetCollection<BsonDocument>("Chat");
-            var bsonDocumentRequest = new BsonDocument(
-                new Dictionary<string, string> {
-                    { "IdUsuario", activity.From.Id },
-                    { "Mensagem", activity.Text }
-                }
-            );
-
-            collectionChat.InsertOne(bsonDocumentRequest);
-
-            // Grava a quantidade de mensagens por usuário
-            var countByUser = GetByUser(activity.From.Id);
-            var collectionChatCount = _db.GetCollection<BsonDocument>("ChatCount");
-            var count = 1;
-            if (countByUser != null)
+            ChatDto chatDto = new ChatDto
             {
-                count = Convert.ToInt32(countByUser.GetValue("Count")) + 1;
-                DeleteByUser(activity.From.Id);
-            }           
+                UserId = activity.From.Id,
+                Message = activity.Text
+            };
+            _chatAppService.AddMessage(chatDto);
 
-            var bsonDocumentRequestChatCount = new BsonDocument(
-                new Dictionary<string, string> {
-                    { "IdUsuario", activity.From.Id },
-                    { "Count", count.ToString() }
-                }
-            );
-            collectionChatCount.InsertOne(bsonDocumentRequestChatCount);
-
-            // HTTP 202
             return Accepted();
         }
 
@@ -114,24 +78,6 @@ namespace SimpleBotCore.Controllers
             var reply = message.CreateReply(text);
 
             await connector.Conversations.ReplyToActivityAsync(reply);
-        }
-
-        public BsonDocument GetByUser(string userId)
-        {
-            var collection = _db.GetCollection<BsonDocument>("ChatCount");
-            FilterDefinitionBuilder<BsonDocument> builder = Builders<BsonDocument>.Filter;
-            FilterDefinition<BsonDocument> filter = builder.Eq("IdUsuario", userId);
-            BsonDocument bsonDocumentResponse = collection.Find(filter).FirstOrDefault();
-
-            return bsonDocumentResponse;
-        }
-
-        public void DeleteByUser(string userId)
-        {
-            var collection = _db.GetCollection<BsonDocument>("ChatCount");
-            FilterDefinitionBuilder<BsonDocument> builder = Builders<BsonDocument>.Filter;
-            FilterDefinition<BsonDocument> filter = builder.Eq("IdUsuario", userId);
-            collection.DeleteOne(filter);
         }
     }
 }
